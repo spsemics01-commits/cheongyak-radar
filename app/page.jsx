@@ -117,12 +117,12 @@ export default function App() {
       <header className="bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 px-4 py-3 flex items-center justify-between flex-shrink-0 transition-colors">
         <div>
           <h1 className="text-base font-black text-gray-900 dark:text-gray-100">
-            청약레이더 <span className="text-indigo-500">성남·수지</span>
+            청약레이더 <span className="text-indigo-500">성남·수지·하남</span>
           </h1>
           <p className="text-[10px] text-gray-400 dark:text-gray-500">
             {lastFetched
               ? `${lastFetched} 기준 · ${timeSince(lastFetchedRaw) || ""}`
-              : "분당 · 판교 · 위례 · 복정 · 수지"}
+              : "분당 · 판교 · 위례 · 수지 · 하남"}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -158,8 +158,8 @@ export default function App() {
           <div className="px-4 py-5 space-y-5">
             {/* Hero */}
             <div className="bg-gradient-to-br from-indigo-600 to-violet-700 rounded-3xl p-5 text-white shadow-lg">
-              <p className="text-xs opacity-60 mb-1">📍 성남 · 분당 · 판교 · 수지</p>
-              <h2 className="text-xl font-black leading-tight mb-1">성남·수지 청약레이더</h2>
+              <p className="text-xs opacity-60 mb-1">📍 성남 · 분당 · 판교 · 수지 · 하남</p>
+              <h2 className="text-xl font-black leading-tight mb-1">성남·수지·하남 청약레이더</h2>
               <p className="text-xs opacity-75 mb-4">내 집 마련 기회를 놓치지 마세요</p>
               <div className="flex gap-2">
                 <button
