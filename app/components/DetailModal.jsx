@@ -1,5 +1,6 @@
 "use client";
 import { StatusBadge, TypeBadge, HotBadge } from "./Badges";
+import { LoanCalculator } from "./LoanCalculator";
 
 function cls(...a) { return a.filter(Boolean).join(" "); }
 
@@ -76,6 +77,9 @@ export function DetailModal({ item, onClose, bookmarks, toggleBookmark }) {
             <p className="text-sm text-amber-800 dark:text-amber-200 leading-relaxed whitespace-pre-line">{item.caution}</p>
           </div>
         )}
+
+        {/* 자금 계산기 */}
+        <LoanCalculator price={item.price} />
 
         {/* 외부 링크 */}
         <a
