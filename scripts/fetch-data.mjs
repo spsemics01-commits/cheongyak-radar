@@ -85,7 +85,9 @@ async function fetchCheongyak() {
 
   const today = new Date().toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" });
 
-  const prompt = `당신은 부동산 청약 전문가입니다. ${today} 기준 성남시(분당·판교·위례·복정 포함) 지역의 아파트 청약 공고를 웹에서 검색해서 알려주세요.
+  const prompt = `당신은 부동산 청약 전문가입니다. ${today} 기준 아래 지역의 아파트 청약 공고를 웹에서 검색해서 알려주세요.
+
+대상 지역: 성남시(분당·판교·위례·복정 포함), 용인시 수지구
 
 검색할 사이트:
 - LH청약플러스 (apply.lh.or.kr)
@@ -96,7 +98,7 @@ async function fetchCheongyak() {
 반드시 아래 JSON 형식만 응답하세요. 마크다운이나 설명 없이 순수 JSON만:
 
 {
-  "summary": "${today} 기준 성남 지역 청약 현황 2~3문장 요약",
+  "summary": "${today} 기준 성남·용인수지 청약 현황 2~3문장 요약",
   "items": [
     {
       "name": "단지명 (정확한 공식 명칭)",
@@ -107,7 +109,7 @@ async function fetchCheongyak() {
       "price": "분양가 또는 임대료 요약",
       "status": "진행중|예정|마감임박|마감 중 하나",
       "isHot": true/false (주목할 만한 단지인지),
-      "area": "성남|분당|판교|위례|복정 중 가장 가까운 곳",
+      "area": "성남|분당|판교|위례|복정|수지 중 가장 가까운 곳",
       "detail": "일반인이 이해하기 쉽게 3~5줄 핵심 정보",
       "eligibility": "신청 자격 핵심 요약",
       "caution": "꼭 알아야 할 주의사항"
