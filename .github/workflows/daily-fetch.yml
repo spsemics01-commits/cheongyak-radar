@@ -1,0 +1,42 @@
+name: "\ud83c\udfe0 \uccad\uc57d \ub370\uc774\ud130 \uc790\ub3d9 \uc218\uc9d1"
+
+on:
+  schedule:
+    # 매일 자정 KST (= UTC 15:00) 실행
+    - cron: "0 15 * * *"
+    # 매일 오전 9시 KST (= UTC 00:00) 추가 실행 - 오전 업데이트
+    - cron: "0 0 * * *"
+  # 수동 실행
+  workflow_dispatch:
+
+jobs:
+  fetch-cheongyak:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: "\ud83d\udce5 \ucf54\ub4dc \uccb4\ud06c\uc544\uc6c3"
+        uses: actions/checkout@v4
+
+      - name: "\u2699\ufe0f Node.js 20 \uc124\uc815"
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: "\ud83d\udce6 \uc758\uc874\uc131 \uc124\uce58"
+        run: npm install @supabase/supabase-js
+
+      - name: "\ud83d\udd0d \uccad\uc57d \ub370\uc774\ud130 \uc218\uc9d1"
+        run: node scripts/fetch-data.mjs
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+
+      - name: "\u2705 \uc644\ub8cc \uc54c\ub9bc"
+        if: success()
+        run: echo "✅ 청약 데이터 수집 완료 $(TZ='Asia/Seoul' date '+%Y-%m-%d %H:%M KST')"
+
+      - name: "\u274c \uc2e4\ud328 \uc54c\ub9bc"
+        if: failure()
+        run: echo "❌ 청약 데이터 수집 실패 $(TZ='Asia/Seoul' date '+%Y-%m-%d %H:%M KST') - Actions 로그를 확인하세요"
