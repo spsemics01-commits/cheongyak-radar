@@ -1,11 +1,13 @@
 // scripts/fetch-data.mjs
-// GitHub Actions에서 매일 실행 → Claude API (웹 검색) → Supabase 저장
+// GitHub Actions에서 매일 실행 → Claude API (웹 검색) → Supabase 저장 → 이메일 알림
 
 import { createClient } from "@supabase/supabase-js";
 
 const ANTHROPIC_API = "https://api.anthropic.com/v1/messages";
+const RESEND_API = "https://api.resend.com/emails";
 const MAX_RETRIES = 2;
 const RETRY_DELAY_MS = 5000;
+const NOTIFY_EMAIL = "fit6293@gmail.com";
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -24,7 +26,6 @@ function validateItem(item) {
 }
 
 function extractJSON(text) {
-  // 마크다운 코드 블록 제거
   const cleaned = text.replace(/```json\s*/g, "").replace(/```\s*/g, "");
   const match = cleaned.match(/\{[\s\S]*\}/);
   if (!match) return null;
@@ -76,6 +77,91 @@ async function callClaudeAPI(prompt, retries = MAX_RETRIES) {
         throw err;
       }
     }
+  }
+}
+
+// 민간분양 위주로 주목할 공고 이메일 발송
+async function sendNotification(items, summary) {
+  const resendKey = process.env.RESEND_API_KEY;
+  if (!resendKey) {
+    console.log("📧 RESEND_API_KEY 없음 - 이메일 알림 건너뜀");
+    return;
+  }
+
+  // 민간분양 + 진행중/예정/마감임박 필터
+  const notable = items.filter(
+    (i) => i.type === "민간분양" && ["진행중", "예정", "마감임박"].includes(i.status)
+  );
+
+  // 주목할 공고 (is_hot이거나 마감임박)
+  const hot = items.filter(
+    (i) => (i.is_hot || i.status === "마감임박") && ["진행중", "예정", "마감임박"].includes(i.status)
+  );
+
+  // 알릴 게 없으면 스킵
+  if (notable.length === 0 && hot.length === 0) {
+    console.log("📧 알릴 만한 공고 없음 - 이메일 건너뜀");
+    return;
+  }
+
+  const today = new Date().toLocaleDateString("ko-KR");
+
+  // HTML 이메일 생성
+  const makeCard = (item) => `
+    <div style="background:#f8f9fa;border-radius:12px;padding:16px;margin-bottom:12px;">
+      <div style="display:flex;gap:8px;margin-bottom:8px;">
+        <span style="background:${item.type === "민간분양" ? "#ede9fe" : "#e0f2fe"};color:${item.type === "민간분양" ? "#7c3aed" : "#0369a1"};font-size:11px;font-weight:bold;padding:2px 8px;border-radius:20px;">${item.type}</span>
+        <span style="background:${item.status === "마감임박" ? "#fee2e2" : item.status === "진행중" ? "#d1fae5" : "#dbeafe"};color:${item.status === "마감임박" ? "#dc2626" : item.status === "진행중" ? "#059669" : "#2563eb"};font-size:11px;font-weight:bold;padding:2px 8px;border-radius:20px;">${item.status}</span>
+        ${item.is_hot ? '<span style="font-size:11px;">🔥</span>' : ""}
+      </div>
+      <h3 style="margin:0 0 4px;font-size:15px;color:#111;">${item.name}</h3>
+      <p style="margin:0 0 8px;font-size:13px;color:#666;">${item.location || ""}</p>
+      <div style="font-size:12px;color:#555;">
+        ${item.date ? `📅 ${item.date}<br>` : ""}
+        ${item.units ? `🏠 ${item.units}세대<br>` : ""}
+        ${item.price ? `💰 ${item.price}<br>` : ""}
+      </div>
+      ${item.detail ? `<p style="margin:8px 0 0;font-size:12px;color:#444;line-height:1.6;">${item.detail.replace(/\n/g, "<br>")}</p>` : ""}
+    </div>`;
+
+  const html = `
+    <div style="max-width:480px;margin:0 auto;font-family:'Apple SD Gothic Neo',sans-serif;">
+      <div style="background:linear-gradient(135deg,#4f46e5,#7c3aed);border-radius:16px;padding:20px;color:white;margin-bottom:16px;">
+        <h1 style="margin:0;font-size:18px;">🏠 청약레이더 알림</h1>
+        <p style="margin:4px 0 0;font-size:13px;opacity:0.8;">${today} 기준 성남·수지</p>
+      </div>
+      ${summary ? `<div style="background:#4f46e5;border-radius:12px;padding:14px;color:white;margin-bottom:16px;font-size:13px;line-height:1.5;">🤖 ${summary}</div>` : ""}
+      ${notable.length > 0 ? `<h2 style="font-size:15px;color:#111;margin:16px 0 8px;">📋 민간분양 공고 (${notable.length}건)</h2>${notable.map(makeCard).join("")}` : ""}
+      ${hot.length > 0 ? `<h2 style="font-size:15px;color:#111;margin:16px 0 8px;">🔥 주목할 공고 (${hot.length}건)</h2>${hot.map(makeCard).join("")}` : ""}
+      <div style="text-align:center;margin-top:20px;">
+        <a href="https://cheongyak-radar.vercel.app" style="display:inline-block;background:#4f46e5;color:white;text-decoration:none;padding:12px 24px;border-radius:12px;font-size:14px;font-weight:bold;">앱에서 자세히 보기 →</a>
+      </div>
+      <p style="text-align:center;font-size:11px;color:#aaa;margin-top:16px;">청약레이더 자동 알림 | 매일 자정·오전 9시 발송</p>
+    </div>`;
+
+  try {
+    const res = await fetch(RESEND_API, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${resendKey}`,
+      },
+      body: JSON.stringify({
+        from: "청약레이더 <onboarding@resend.dev>",
+        to: [NOTIFY_EMAIL],
+        subject: `[청약레이더] ${today} - 민간분양 ${notable.length}건${hot.length > 0 ? `, 주목 ${hot.length}건` : ""}`,
+        html,
+      }),
+    });
+
+    if (res.ok) {
+      console.log(`📧 이메일 발송 성공! → ${NOTIFY_EMAIL}`);
+    } else {
+      const err = await res.text();
+      console.error(`📧 이메일 발송 실패:`, err);
+    }
+  } catch (err) {
+    console.error(`📧 이메일 오류:`, err.message);
   }
 }
 
@@ -142,7 +228,6 @@ async function fetchCheongyak() {
 
     if (validItems.length === 0) {
       console.warn("⚠️ 유효한 공고가 0개입니다. 기존 데이터를 유지합니다.");
-      // 요약만 업데이트
       await supabase.from("cheongyak_meta").upsert({
         id: 1,
         summary: summary || "오늘은 새로운 공고가 확인되지 않았습니다.",
@@ -184,6 +269,10 @@ async function fetchCheongyak() {
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
     console.log(`🎉 완료! ${validItems.length}개 공고 저장 (${elapsed}초 소요)`);
     console.log("요약:", summary);
+
+    // 이메일 알림 발송
+    await sendNotification(rows, summary);
+
   } catch (err) {
     console.error("❌ 최종 오류:", err.message);
     process.exit(1);
